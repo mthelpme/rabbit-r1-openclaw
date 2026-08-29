@@ -1,0 +1,6 @@
+id=hide_statusbar
+name=Hide Status Bar (Rabbit R1)
+version=v1.0
+versionCode=1
+author=recovery
+description=Hides the system status bar globally (immersive.status). Swipe down from the top edge to reveal it transiently. Reboot after install/remove.

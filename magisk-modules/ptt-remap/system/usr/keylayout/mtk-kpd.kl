@@ -1,0 +1,4 @@
+# Rabbit R1 side/PTT button remap
+# mtk-kpd emits KEY_POWER (scancode 116). Remap to BUTTON_1 (257) so apps can
+# capture it via onKeyDown. WAKE keeps the button waking the screen.
+key 116   BUTTON_1   WAKE

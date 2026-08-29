@@ -1,0 +1,6 @@
+id=enable_app_widgets
+name=Enable App Widgets (GSI fix)
+version=v1.0
+versionCode=1
+author=recovery
+description=Declares android.software.app_widgets so SystemServer starts the AppWidgetManager service. Fixes NPE crashes (RiPlay/Glance, Brave, etc.) on GSIs missing this feature. Reboot after install.

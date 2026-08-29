@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- openclaw official brand: Claw Red #ff5a50 · Deep Shell #991b1b · Reef Teal #00e5cc · Space Dark #050810 -->
+
+    <!-- surfaces (Space Dark) -->
+    <color name="oc_bg">#FF050810</color>
+    <color name="oc_bg_grad_top">#FF0A0F1E</color>
+    <color name="oc_bg_grad_bottom">#FF030509</color>
+    <color name="oc_bg_listen_top">#FF210A0C</color>
+    <color name="oc_bg_listen_mid">#FF0E0710</color>
+    <color name="oc_bg_error_top">#FF2A0C10</color>
+    <color name="oc_bg_error_mid">#FF10060B</color>
+    <color name="oc_surface">#FF0C1120</color>
+    <color name="oc_divider">#FF1C2333</color>
+    <color name="oc_divider_dim">#FF141A28</color>
+
+    <!-- accent (Claw Red) — output side: TTS, primary actions -->
+    <color name="oc_accent">#FFFF5A50</color>
+    <color name="oc_accent_light">#FFFF7D75</color>
+    <color name="oc_accent_pale">#FFFFB3AD</color>
+    <color name="oc_accent_deep">#FF991B1B</color>
+    <color name="oc_accent_dark">#FF3A0F10</color>
+    <color name="oc_on_accent">#FF1A0608</color>
+
+    <!-- secondary — input side: STT, listening. Now Claw Red too (teal removed by request). -->
+    <color name="oc_sage">#FFFF5A50</color>
+    <color name="oc_sage_light">#FFFF7D75</color>
+    <color name="oc_sage_pale">#FFFFB3AD</color>
+    <color name="oc_sage_dim">#FFD1524A</color>
+    <color name="oc_sage_dark">#FF3A0F10</color>
+    <color name="oc_on_sage">#FF1A0608</color>
+    <color name="oc_transcript">#FFFFCFC9</color>
+
+    <!-- text (cool grays on Space Dark) -->
+    <color name="oc_text_bright">#FFF4F7FB</color>
+    <color name="oc_text">#FFE6EBF2</color>
+    <color name="oc_text_secondary">#FF9AA3B4</color>
+    <color name="oc_text_tertiary">#FF6C7488</color>
+    <color name="oc_text_quaternary">#FF464E60</color>
+    <color name="oc_stroke">#FF2A3346</color>
+</resources>

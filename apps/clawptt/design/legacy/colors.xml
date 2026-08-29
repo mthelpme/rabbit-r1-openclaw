@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- surfaces -->
+    <color name="oc_bg">#FF14110D</color>
+    <color name="oc_bg_grad_top">#FF241E17</color>
+    <color name="oc_bg_grad_bottom">#FF0C0A07</color>
+    <color name="oc_bg_listen_top">#FF1C2318</color>
+    <color name="oc_bg_listen_mid">#FF12130D</color>
+    <color name="oc_bg_error_top">#FF2A1A15</color>
+    <color name="oc_bg_error_mid">#FF150F0D</color>
+    <color name="oc_surface">#FF1C1813</color>
+    <color name="oc_divider">#FF2E2B25</color>
+    <color name="oc_divider_dim">#FF241F19</color>
+
+    <!-- accent (terracotta) — output side: TTS, primary actions -->
+    <color name="oc_accent">#FFD67F48</color>
+    <color name="oc_accent_light">#FFF6A06B</color>
+    <color name="oc_accent_pale">#FFFFC6A5</color>
+    <color name="oc_accent_deep">#FF8C491A</color>
+    <color name="oc_accent_dark">#FF402310</color>
+    <color name="oc_on_accent">#FF241A12</color>
+
+    <!-- secondary (sage) — input side: STT, listening -->
+    <color name="oc_sage">#FF8FA073</color>
+    <color name="oc_sage_light">#FFAEBF92</color>
+    <color name="oc_sage_pale">#FFCCDBB2</color>
+    <color name="oc_sage_dim">#FF728157</color>
+    <color name="oc_sage_dark">#FF272E1B</color>
+    <color name="oc_on_sage">#FF1C2318</color>
+    <color name="oc_transcript">#FFE1EECC</color>
+
+    <!-- text -->
+    <color name="oc_text_bright">#FFF9F4ED</color>
+    <color name="oc_text">#FFEEE7DB</color>
+    <color name="oc_text_secondary">#FFA19786</color>
+    <color name="oc_text_tertiary">#FF82796A</color>
+    <color name="oc_text_quaternary">#FF5F584D</color>
+    <color name="oc_stroke">#FF474238</color>
+</resources>

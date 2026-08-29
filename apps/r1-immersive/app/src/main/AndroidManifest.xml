@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:label="R1 Immersive"
+        android:icon="@android:drawable/ic_menu_view">
+
+        <!-- Xposed/LSPosed module metadata -->
+        <meta-data android:name="xposedmodule" android:value="true" />
+        <meta-data android:name="xposeddescription"
+            android:value="Force-hides the status bar in all apps (swipe from the top to reveal). For the Rabbit R1." />
+        <meta-data android:name="xposedminversion" android:value="82" />
+        <!-- Recommended scope: System Framework only -->
+        <meta-data android:name="xposedscope" android:resource="@array/xposedscope" />
+
+    </application>
+</manifest>

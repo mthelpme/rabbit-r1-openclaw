@@ -1,0 +1,6 @@
+id=motor_sepolicy
+name=R1 Camera Motor SELinux permit
+version=v1.0
+versionCode=1
+author=recovery
+description=Allows root to write the camera step-motor node (sysfs_motor) so camera orientation control works on the GSI. Pairs with the R1 Camera Motor app. Reboot after install.

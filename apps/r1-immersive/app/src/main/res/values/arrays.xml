@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Suggested LSPosed scope: the system framework (hooks android.app.Activity globally). -->
+    <string-array name="xposedscope">
+        <item>android</item>
+    </string-array>
+</resources>

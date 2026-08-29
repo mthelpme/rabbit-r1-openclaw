@@ -1,0 +1,36 @@
+# Build artifacts
+**/build/
+**/.gradle/
+dist/
+
+# Local environment
+**/local.properties
+
+# macOS
+**/.DS_Store
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# Android / release artifacts (publish these as GitHub Releases, not in the tree)
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Python
+**/__pycache__/
+**/venv/
+**/.venv/
+*.pyc
+
+# Logs / working files
+**/*.log
+**/newmascot.png
+**/openspark_mascot.png
+**/newui-screenshots-errors/
+**/*.zip
+**/design_handoff/
+**/*mockup*

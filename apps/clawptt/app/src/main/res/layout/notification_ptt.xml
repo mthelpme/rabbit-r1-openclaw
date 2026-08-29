@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/n_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@color/oc_surface"
+    android:paddingStart="14dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
+
+    <ImageView
+        android:id="@+id/n_mascot"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="14dp"
+        android:src="@drawable/mascot"
+        android:scaleType="fitCenter" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/n_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="openclaw is listening"
+            android:textColor="@color/oc_text_bright"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/n_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hold the side key to talk"
+            android:textColor="@color/oc_text_tertiary"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/n_stop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stop"
+        android:textColor="@color/oc_on_accent"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:background="@drawable/pill_accent"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+</LinearLayout>

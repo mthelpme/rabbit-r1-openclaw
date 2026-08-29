@@ -1,0 +1,6 @@
+id=r1_ptt_remap
+name=Rabbit R1 PTT Remap (POWER to BUTTON_1)
+version=v1.0
+versionCode=1
+author=recovery
+description=Remaps the R1 side/PTT button (mtk-kpd scancode 116) from POWER to KEYCODE_BUTTON_1 with WAKE, so apps can capture it. Screen still wakes on press; hardware long-press force-off unaffected.

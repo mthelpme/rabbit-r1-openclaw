@@ -1,0 +1,6 @@
+id=hide_ime_navbar
+name=Hide IME Navigation Bar (Rabbit R1)
+version=v1.0
+versionCode=1
+author=recovery
+description=Removes the keyboard IME nav-bar strip by overlaying config_imeDrawsImeNavBar=false. Dismiss the keyboard with the back-swipe gesture. Reboot after install/remove.
