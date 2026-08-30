@@ -8,7 +8,8 @@ A toolkit that turns a **Rabbit R1** into a de-Googled, hold-to-talk voice termi
 OpenAI-compatible chat gateway** (e.g. a self-hosted [OpenClaw](https://github.com/) instance
 reached over Tailscale) — plus the ROM/root plumbing that makes it usable as a real pocket device.
 
-The centerpiece is **ClawPTT**: press and hold the R1's side button, speak, release, and your
+The centerpiece is **ClawPTT** (developed in its own repo — **[github.com/mthelpme/clawptt](https://github.com/mthelpme/clawptt)**):
+press and hold the R1's side button, speak, release, and your
 words are transcribed, sent to your gateway, and the reply is streamed back and spoken aloud.
 Around it are the device tweaks we needed to make the R1 pleasant: hide the status bar, control
 the camera motor, remap the PTT key, an idle "airplane when locked" power saver, and self-hosted
@@ -52,7 +53,7 @@ The quick pop-up panel (hold the side button anywhere), and the persistent chat 
 
 | Path | What it is |
 |------|-----------|
-| [`apps/clawptt`](apps/clawptt) | **ClawPTT** — the hold-to-talk voice bridge (Android, Kotlin). The star of the show. |
+| **[ClawPTT](https://github.com/mthelpme/clawptt)** (own repo) | **ClawPTT** — the hold-to-talk voice bridge (Android, Kotlin). The star of the show. Developed in its own repository: **[github.com/mthelpme/clawptt](https://github.com/mthelpme/clawptt)**. |
 | [`apps/r1-immersive`](apps/r1-immersive) | **R1 Immersive** — a small LSPosed/Vector module that force-hides the status bar in every app. |
 | [`apps/r1-tools`](apps/r1-tools) | **R1 Tools** — camera-motor control + accelerometer auto-rotate for the R1's single motorized camera. |
 | [`magisk-modules/`](magisk-modules) | Magisk modules: PTT key remap, hide IME nav-bar, hide status bar, camera-motor sepolicy, enable app widgets. |
@@ -103,7 +104,7 @@ All third-party pieces are publicly available — grab the current versions here
 
 1. Get the R1 onto a LineageOS 21 GSI with Magisk root — see **[docs/SETUP.md](docs/SETUP.md)**.
 2. Flash the Magisk modules you want (at minimum the **PTT key remap**) — [`magisk-modules/`](magisk-modules).
-3. Build + install the apps: `cd apps/clawptt && ./gradlew assembleDebug` then `adb install -r app/build/outputs/apk/debug/app-debug.apk` (same for `apps/r1-immersive`, `apps/r1-tools`).
+3. Install **ClawPTT** — grab the APK from its [Releases](https://github.com/mthelpme/clawptt/releases), or build from source: `git clone https://github.com/mthelpme/clawptt && cd clawptt && ./gradlew assembleDebug` then `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Build the R1 helper apps the same way (`cd apps/r1-immersive`, `apps/r1-tools`).
 4. (Optional) Run the STT/TTS services on your server and expose them over Tailscale — [`services/`](services).
 5. Open ClawPTT, enter your gateway URL + token (and STT/TTS if self-hosting), grant the accessibility service, and hold the side button.
 

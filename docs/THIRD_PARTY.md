@@ -3,11 +3,13 @@
 This project bundles or depends on the following. Their names/trademarks belong to their owners.
 
 ## Bundled in this repo
-- **Figtree** (`apps/clawptt/app/src/main/res/font/figtree.ttf`) — SIL Open Font License 1.1.
-- **Caprasimo** (`apps/clawptt/design/legacy/caprasimo.ttf`, kept only for the legacy design
-  rollback) — SIL Open Font License 1.1.
-- **Mascot artwork** (`apps/clawptt/.../mascot.png` and launcher icon) — original brand asset of
-  this project, released under this repo's MIT license unless noted otherwise.
+- **Mascot artwork** (`assets/mascot.png`) — original brand asset of this project, released under
+  this repo's MIT license unless noted otherwise.
+
+## Bundled in the ClawPTT repo ([github.com/mthelpme/clawptt](https://github.com/mthelpme/clawptt))
+- **Figtree** (`app/src/main/res/font/figtree.ttf`) — SIL Open Font License 1.1.
+- **Caprasimo** (`design/legacy/caprasimo.ttf`, kept only for the legacy design rollback) —
+  SIL Open Font License 1.1.
 
 The OFL requires that the fonts' license accompany them; see the respective font projects
 (Google Fonts: Figtree, Caprasimo) for the full OFL-1.1 text.

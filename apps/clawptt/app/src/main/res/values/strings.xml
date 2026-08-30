@@ -1,4 +1,0 @@
-<resources>
-    <string name="app_name">ClawPTT</string>
-    <string name="accessibility_desc">Lets ClawPTT capture the hardware push-to-talk button system-wide, including on the lock screen.</string>
-</resources>

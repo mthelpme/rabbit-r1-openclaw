@@ -51,9 +51,19 @@ Flash any of these from [`magisk-modules/`](../magisk-modules) (build zips with
 
 ## 5. Build & install the apps
 
+**ClawPTT** lives in its own repository — [github.com/mthelpme/clawptt](https://github.com/mthelpme/clawptt).
+Grab the APK from its [Releases](https://github.com/mthelpme/clawptt/releases), or build it from
+source alongside the two R1 helper apps here:
+
 ```sh
 export JAVA_HOME=/path/to/jdk-17 ANDROID_HOME=/path/to/android-sdk
-for app in apps/clawptt apps/r1-immersive apps/r1-tools; do
+
+# ClawPTT (separate repo)
+git clone https://github.com/mthelpme/clawptt
+( cd clawptt && ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk )
+
+# R1 helper apps (this repo)
+for app in apps/r1-immersive apps/r1-tools; do
   ( cd "$app" && ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk )
 done
 ```
