@@ -128,6 +128,17 @@ class Config(context: Context) {
         get() = prefs.getBoolean("bufferOnCellular", true)
         set(v) = prefs.edit().putBoolean("bufferOnCellular", v).apply()
 
+    // Chat page text-size multiplier (1.0 = default). Applied to message bubbles.
+    var chatTextScale: Float
+        get() = prefs.getFloat("chatTextScale", 1.0f)
+        set(v) = prefs.edit().putFloat("chatTextScale", v).apply()
+
+    // Post a notification with the reply when a turn finishes while you're not watching (async use:
+    // speak a task, pocket the R1, get pinged when the agent is done). Tap it to open the chat page.
+    var notifyReplies: Boolean
+        get() = prefs.getBoolean("notifyReplies", true)
+        set(v) = prefs.edit().putBoolean("notifyReplies", v).apply()
+
     // Behavior toggles
     var speakAloud: Boolean
         get() = prefs.getBoolean("speakAloud", true)
@@ -165,12 +176,13 @@ class Config(context: Context) {
      * Stable OpenClaw session key ("rabbit-r1:<uuid>") sent as the OpenAI `user` field so the
      * gateway threads all turns into ONE conversation. Reset it to start a fresh thread.
      */
-    val sessionKey: String
+    var sessionKey: String
         get() {
             var s = prefs.getString("sessionKey", "")!!
             if (s.isEmpty()) { s = "rabbit-r1:${java.util.UUID.randomUUID()}"; prefs.edit().putString("sessionKey", s).apply() }
             return s
         }
+        set(v) = prefs.edit().putString("sessionKey", v).apply()   // resume an existing thread
 
     fun newConversation() {
         prefs.edit().putString("sessionKey", "rabbit-r1:${java.util.UUID.randomUUID()}").apply()

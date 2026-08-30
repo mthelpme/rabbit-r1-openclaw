@@ -6,6 +6,7 @@ module contents). Build the flashable zips and flash them in the Magisk app, the
 | Module | What it does | Needed by |
 |--------|--------------|-----------|
 | `ptt-remap` | Remaps the R1 side-button scancode `116` → `KEYCODE_BUTTON_1` via a keylayout overlay. | **ClawPTT** (PTT capture) |
+| `wheel-remap` | Remaps the scroll wheel (`och1970_holl_key`, scancodes `103`/`108`) → `VOLUME_UP`/`VOLUME_DOWN`, so the wheel controls volume with no background app. ClawPTT re-catches these to scroll in-app. | optional |
 | `hide-statusbar` | Hides the status bar globally via `policy_control immersive.status`. (Android 14: launcher only — use **R1 Immersive** for all apps.) | optional |
 | `hide-ime-navbar` | Removes the keyboard's IME nav-bar strip via a fabricated overlay. | optional |
 | `motor-sepolicy` | SELinux rules allowing the camera-motor sysfs node to be written. | **R1 Tools** |

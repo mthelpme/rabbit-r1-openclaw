@@ -36,7 +36,7 @@ class GatewayClient(private val cfg: Config) {
      * Streams the reply via SSE. Calls onDelta for each token as it arrives; returns the full
      * text when the stream ends. Blocking; call off the main thread.
      */
-    fun chatStream(userText: String, onDelta: (String) -> Unit): String {
+    fun chatStream(userText: String, onStatus: (String) -> Unit = {}, onDelta: (String) -> Unit): String {
         val body = JSONObject().apply {
             put("model", cfg.model)
             put("stream", true)
@@ -93,7 +93,17 @@ class GatewayClient(private val cfg: Config) {
                         val choice = runCatching {
                             JSONObject(data).getJSONArray("choices").getJSONObject(0)
                         }.getOrNull() ?: return@forEach
-                        val delta = choice.optJSONObject("delta")?.optString("content", "").orEmpty()
+                        val deltaObj = choice.optJSONObject("delta")
+                        // Tool activity: if the gateway surfaces agent tool_calls over the stream,
+                        // report each function name so the UI can show "running <tool>…". (Agents that
+                        // run tools purely server-side may never emit these — the UI degrades to a timer.)
+                        deltaObj?.optJSONArray("tool_calls")?.let { tcs ->
+                            for (i in 0 until tcs.length()) {
+                                val name = tcs.getJSONObject(i).optJSONObject("function")?.optString("name").orEmpty()
+                                if (name.isNotEmpty()) onStatus(name)
+                            }
+                        }
+                        val delta = deltaObj?.optString("content", "").orEmpty()
                         if (delta.isNotEmpty()) {
                             val now = System.currentTimeMillis()
                             if (firstAt < 0) firstAt = now

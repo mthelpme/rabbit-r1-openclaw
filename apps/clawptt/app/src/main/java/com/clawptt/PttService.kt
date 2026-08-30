@@ -28,6 +28,7 @@ class PttService : Service() {
         const val ACTION_CANCEL = "com.clawptt.CANCEL"
         const val ACTION_MUTE = "com.clawptt.MUTE"
         const val ACTION_SPEAK = "com.clawptt.SPEAK"
+        const val ACTION_SPEAK_TEXT = "com.clawptt.SPEAK_TEXT"  // replay a specific answer from the chat page
         const val ACTION_DISMISS = "com.clawptt.DISMISS"
         const val ACTION_STOP = "com.clawptt.STOP"
         const val ACTION_STATE = "com.clawptt.STATE"
@@ -36,7 +37,9 @@ class PttService : Service() {
         const val ACTION_RESET = "com.clawptt.RESET"     // New chat: next hold is a fresh one-off panel
         const val ACTION_SEND_TEXT = "com.clawptt.SEND_TEXT"  // typed message from the chat page
         private const val CHANNEL = "clawptt"
+        private const val CHANNEL_REPLY = "clawptt_replies"
         private const val NOTIF_ID = 42
+        private const val NOTIF_REPLY_ID = 43
         private const val HOLD_THRESHOLD_MS = 250L    // must hold this long before listening starts
         private const val READ_TIMEOUT_MS = 30000L    // how long the reply stays up to read
     }
@@ -98,6 +101,7 @@ class PttService : Service() {
             ACTION_CANCEL -> onCancel()
             ACTION_MUTE -> onMute()
             ACTION_SPEAK -> onSpeak()
+            ACTION_SPEAK_TEXT -> onSpeakText(intent.getStringExtra("text").orEmpty())
             ACTION_DISMISS -> done()
             ACTION_ATTACH -> { attached = true; replayState() }
             ACTION_DETACH -> attached = false
@@ -177,7 +181,10 @@ class PttService : Service() {
                 var announced = false
                 var lastDisplay = 0L
 
-                val full = gateway.chatStream(t) { delta ->
+                val full = gateway.chatStream(t, onStatus = { tool ->
+                    // Agent is running a tool before it starts writing — surface it on the Thinking screen.
+                    main.post { if (gen == turnId && state == State.THINKING) ui(State.THINKING, "THINKING", "🔧  $tool", "“$t”") }
+                }) { delta ->
                     if (gen != turnId) return@chatStream      // canceled mid-stream: stop updating/speaking
                     sb.append(delta); streamAccum = sb.toString()
                     val now = android.os.SystemClock.elapsedRealtime()
@@ -197,8 +204,10 @@ class PttService : Service() {
                 val fullClean = stripMarkdown(full)
                 lastReply = fullClean
                 History.add(this, t, fullClean)
-                Conversation.add(this, Conversation.USER, t)
-                Conversation.add(this, Conversation.ASSISTANT, fullClean)
+                Conversation.add(this, cfg.sessionKey, Conversation.USER, t)
+                Conversation.add(this, cfg.sessionKey, Conversation.ASSISTANT, fullClean)
+                // Async: if you fired this and walked away (chat page not open), ping you with the result.
+                if (cfg.notifyReplies && !attached) main.post { notifyReply(t, fullClean) }
                 turnsThisSession++                            // a completed turn -> follow-ups open the chat page
                 main.post { if (announced) streamText(fullClean) else answerBroadcast("SPEAKING", fullClean) }
 
@@ -265,6 +274,16 @@ class PttService : Service() {
         worker.execute {
             try { if (c != null && c.exists()) tts.playCached(c) else tts.speak(lastReply) }
             catch (e: Exception) { android.util.Log.w("ClawPTT", "replay failed: ${e.javaClass.simpleName}: ${e.message}"); main.post { flash("⚠️  ${e.message}") } }
+        }
+    }
+
+    /** Replay a specific answer (long-press → Play again on the chat page). Audio only, no state change. */
+    private fun onSpeakText(text: String) {
+        if (text.isBlank()) return
+        tts.stop()
+        worker.execute {
+            try { tts.speak(text) }
+            catch (e: Exception) { android.util.Log.w("ClawPTT", "playback failed: ${e.javaClass.simpleName}: ${e.message}") }
         }
     }
 
@@ -404,6 +423,28 @@ class PttService : Service() {
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL, "ClawPTT", NotificationManager.IMPORTANCE_LOW)
         )
+        nm.createNotificationChannel(   // reply-ready alerts (async): allowed to make noise
+            NotificationChannel(CHANNEL_REPLY, "Replies", NotificationManager.IMPORTANCE_DEFAULT)
+        )
+    }
+
+    /**
+     * Post the finished reply as a tappable notification for the async case (fire a task, pocket the
+     * R1). Only when the user isn't already watching the chat page. Tap opens the conversation.
+     */
+    private fun notifyReply(question: String, reply: String) {
+        val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        val open = PendingIntent.getActivity(this, 2,
+            Intent(this, ConversationActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags)
+        val n = Notification.Builder(this, CHANNEL_REPLY)
+            .setSmallIcon(R.drawable.ic_chat)
+            .setContentTitle(question.take(60).ifBlank { "openclaw" })
+            .setContentText(reply.take(120))
+            .setStyle(Notification.BigTextStyle().bigText(reply.take(1200)))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(NOTIF_REPLY_ID, n)
     }
 
     override fun onDestroy() {

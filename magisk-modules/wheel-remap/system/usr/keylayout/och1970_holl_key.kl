@@ -1,0 +1,9 @@
+# Rabbit R1 scroll-wheel remap
+# The wheel is a Hall-effect rotary (och1970_holl_key) emitting discrete key events:
+#   scancode 103 = KEY_UP   (rotate one way)
+#   scancode 108 = KEY_DOWN (rotate the other)
+# Stock behaviour (via Generic.kl) is DPAD_UP/DPAD_DOWN, i.e. page/list scrolling.
+# Remap to volume so the wheel controls media/call volume system-wide with no
+# background app. ClawPTT intercepts VOLUME_UP/DOWN to scroll its own windows.
+key 103   VOLUME_UP
+key 108   VOLUME_DOWN

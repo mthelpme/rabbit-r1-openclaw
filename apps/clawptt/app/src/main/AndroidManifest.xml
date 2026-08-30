@@ -33,28 +33,29 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:label="ClawPTT">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false"
+            android:label="Settings" />
 
         <activity
             android:name=".HistoryActivity"
             android:exported="false"
             android:label="History" />
 
-        <!-- Dedicated continuous-conversation page (persistent chat, hardware PTT) -->
+        <!-- Dedicated continuous-conversation page (persistent chat, hardware PTT) — the launcher home -->
         <activity
             android:name=".ConversationActivity"
-            android:exported="false"
+            android:exported="true"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize"
-            android:label="Chat" />
+            android:label="ClawPTT">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <!-- PTT panel: shows over the lock screen, turns the screen on, keeps it awake -->
         <activity

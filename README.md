@@ -32,16 +32,19 @@ The quick pop-up panel (hold the side button anywhere), and the persistent chat 
 
 <table>
   <tr>
-    <td align="center"><img src="screenshots/01-ptt-listening.png" width="200"><br><sub>Listening</sub></td>
-    <td align="center"><img src="screenshots/02-sent.png" width="200"><br><sub>Sent · thinking</sub></td>
+    <td align="center"><img src="screenshots/01-listening.png" width="200"><br><sub>Listening</sub></td>
+    <td align="center"><img src="screenshots/02-thinking.png" width="200"><br><sub>Thinking</sub></td>
     <td align="center"><img src="screenshots/03-speaking.png" width="200"><br><sub>Speaking</sub></td>
-    <td align="center"><img src="screenshots/04-done.png" width="200"><br><sub>Response</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="screenshots/05-chat-listening.png" width="200"><br><sub>Chat · listening</sub></td>
-    <td align="center"><img src="screenshots/06-chat-thinking.png" width="200"><br><sub>Chat · thinking</sub></td>
-    <td align="center"><img src="screenshots/07-history.png" width="200"><br><sub>History</sub></td>
-    <td align="center"><img src="screenshots/08-settings.png" width="200"><br><sub>Settings</sub></td>
+    <td align="center"><img src="screenshots/04-chat.png" width="200"><br><sub>Chat page</sub></td>
+    <td align="center"><img src="screenshots/05-conversations.png" width="200"><br><sub>Conversations</sub></td>
+    <td align="center"><img src="screenshots/06-volume.png" width="200"><br><sub>In-app volume</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/07-settings.png" width="200"><br><sub>Settings</sub></td>
+    <td align="center"><img src="screenshots/08-engines.png" width="200"><br><sub>STT / TTS engines</sub></td>
+    <td align="center"><img src="screenshots/09-notification.png" width="200"><br><sub>Async reply</sub></td>
   </tr>
 </table>
 

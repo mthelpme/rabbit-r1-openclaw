@@ -5,11 +5,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -19,6 +22,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -47,6 +51,8 @@ class ConversationActivity : AppCompatActivity() {
     private lateinit var stopBtn: TextView
     private lateinit var input: EditText
     private lateinit var muteIcon: ImageView
+    private lateinit var audio: AudioManager
+    private lateinit var volSlider: SeekBar
     private var currentPhase = ""
 
     private val bubbleMaxWidth by lazy { (resources.displayMetrics.widthPixels * 0.80f).toInt() }
@@ -91,14 +97,42 @@ class ConversationActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(20f), dp(22f), dp(20f), dp(10f))
         }
-        header.addView(ImageView(this).apply { setImageResource(R.drawable.mascot); scaleType = ImageView.ScaleType.FIT_CENTER },
-            LinearLayout.LayoutParams(dp(30f), dp(30f)).apply { rightMargin = dp(10f) })
-        header.addView(TextView(this).apply {
-            text = "openclaw"; typeface = Ui.figtreeBold(this@ConversationActivity)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f); setTextColor(C(R.color.oc_accent_pale))
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        header.addView(pill("New chat") { newChat() })
+        // The mascot + wordmark are a single tap target → Settings.
+        val brand = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            isClickable = true; setOnClickListener { openSettings() }
+            addView(ImageView(this@ConversationActivity).apply { setImageResource(R.drawable.mascot); scaleType = ImageView.ScaleType.FIT_CENTER },
+                LinearLayout.LayoutParams(dp(30f), dp(30f)).apply { rightMargin = dp(10f) })
+            addView(TextView(this@ConversationActivity).apply {
+                text = "openclaw"; typeface = Ui.figtreeBold(this@ConversationActivity)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f); setTextColor(C(R.color.oc_accent_pale))
+            })
+        }
+        header.addView(brand, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        header.addView(iconPillBtn(R.drawable.ic_threads) { pickConversations() },
+            LinearLayout.LayoutParams(dp(40f), dp(34f)).apply { rightMargin = dp(8f) })
+        header.addView(volumeIconBtn { toggleVolume() },
+            LinearLayout.LayoutParams(dp(40f), dp(34f)))   // New chat lives in the ☰ switcher now
         root.addView(header)
+
+        // ---- volume slider (toggled by the header speaker button) ----
+        audio = getSystemService(AudioManager::class.java)
+        volSlider = SeekBar(this).apply {
+            max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            progress = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val tint = ColorStateList.valueOf(C(R.color.oc_accent))
+            progressTintList = tint; thumbTintList = tint
+            setPadding(dp(22f), dp(2f), dp(22f), dp(10f))
+            visibility = View.GONE
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                    if (fromUser) audio.setStreamVolume(AudioManager.STREAM_MUSIC, p, 0)
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+        root.addView(volSlider, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
 
         // ---- message list ----
         list = LinearLayout(this).apply {
@@ -173,12 +207,15 @@ class ConversationActivity : AppCompatActivity() {
 
         setContentView(root)
         seed()
+        if (!cfg.isConfigured) openSettings()   // first run: send them to setup
     }
+
+    private fun openSettings() = startActivity(Intent(this, MainActivity::class.java))
 
     // ---- seeding from the persisted thread ----
     private fun seed() {
         list.removeAllViews()
-        for (m in Conversation.all(this)) {
+        for (m in Conversation.all(this, cfg.sessionKey)) {
             if (m.role == Conversation.ASSISTANT) {
                 val card = newAssistantCard()
                 card.addView(answerText(m.text))
@@ -200,18 +237,37 @@ class ConversationActivity : AppCompatActivity() {
     }
 
     // ---- broadcast state machine ----
+    // OpenClaw runs agent tools server-side and streams nothing during the wait, so the status strip
+    // escalates by elapsed time to keep a long, silent turn legible (there are no tool events to show).
+    private var thinkStart = 0L
+    private val thinkTick = object : Runnable {
+        override fun run() {
+            val sec = (android.os.SystemClock.elapsedRealtime() - thinkStart) / 1000
+            val label = when {
+                sec < 4  -> "Thinking…"
+                sec < 10 -> "Working…"
+                sec < 25 -> "Still working…"
+                sec < 45 -> "Running a longer task…"
+                else     -> "Still on it…"
+            }
+            setStatus(C(R.color.oc_accent_light), "$label  %d:%02d".format(sec / 60, sec % 60), stop = true)
+            statusLabel.postDelayed(this, 500)
+        }
+    }
+
     private fun onState(phase: String, status: String, body: String, recap: String) {
         currentPhase = phase
+        if (phase != "THINKING") statusLabel.removeCallbacks(thinkTick)
         when (phase) {
             "LISTENING" -> setStatus(C(R.color.oc_sage_light), if (body.isNotBlank()) "🎙  ${unquote(body)}" else "Listening…", stop = false)
             "THINKING" -> {
-                if (!turnActive) { turnActive = true; userBubbleAdded = false; clearPlaceholderIfAny() }
+                if (!turnActive) { turnActive = true; userBubbleAdded = false; clearPlaceholderIfAny(); thinkStart = android.os.SystemClock.elapsedRealtime() }
                 // The transcript arrives in `body` on THINKING (e.g. "“hello”"); add it once, above the answer.
                 ensureUserBubble(body)
                 if (userBubbleAdded && pendingCard == null) {
-                    pendingCard = newAssistantCard().also { it.addView(dotsRow()) }; pendingText = null
+                    pendingCard = thinkingBubble(); pendingText = null   // small bubble, just the dots
                 }
-                setStatus(C(R.color.oc_accent_light), "Thinking…", stop = true)
+                statusLabel.removeCallbacks(thinkTick); statusLabel.post(thinkTick)  // single ticker instance
             }
             "SPEAKING" -> {
                 if (turnActive) { ensureUserBubble(recap); showAssistantText(body) }  // recap is the fallback source
@@ -260,10 +316,11 @@ class ConversationActivity : AppCompatActivity() {
 
     /** Convert the pending "thinking" bubble to a text bubble (or update it) with the streamed text. */
     private fun showAssistantText(text: String) {
-        val card = pendingCard ?: newAssistantCard().also { pendingCard = it }
         if (pendingText == null) {
             cancelThinking()
-            card.removeAllViews()
+            pendingCard?.let { list.removeView(it) }        // drop the tight dots bubble…
+            val card = newAssistantCard()                   // …and give the answer a full-width card
+            pendingCard = card
             pendingText = answerText(text).also { card.addView(it) }
         } else {
             pendingText!!.text = text
@@ -290,7 +347,7 @@ class ConversationActivity : AppCompatActivity() {
     private fun addUserBubble(text: String) {
         val tv = TextView(this).apply {
             this.text = text; typeface = Ui.figtree(this@ConversationActivity)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); setTextColor(C(R.color.oc_transcript))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * cfg.chatTextScale); setTextColor(C(R.color.oc_transcript))
             setLineSpacing(0f, 1.35f); maxWidth = bubbleMaxWidth
             background = Ui.card(this@ConversationActivity, C(R.color.oc_sage_dark), 14f)
             setPadding(dp(14f), dp(11f), dp(14f), dp(11f))
@@ -307,15 +364,47 @@ class ConversationActivity : AppCompatActivity() {
             setPadding(dp(14f), dp(12f), dp(14f), dp(12f))
         }
         list.addView(card, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
-            gravity = Gravity.START; topMargin = dp(8f); bottomMargin = dp(2f); rightMargin = dp(40f)
+            gravity = Gravity.START; topMargin = dp(8f); bottomMargin = dp(2f); rightMargin = dp(14f)  // wider = more response
+        })
+        return card
+    }
+
+    /** A tight, wrap-content bubble that holds just the animated dots while the agent works. */
+    private fun thinkingBubble(): LinearLayout {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Ui.card(this@ConversationActivity, C(R.color.oc_surface), 14f)
+            setPadding(dp(15f), dp(11f), dp(15f), dp(11f))
+            addView(dotsRow())
+        }
+        list.addView(card, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            gravity = Gravity.START; topMargin = dp(8f); bottomMargin = dp(2f)
         })
         return card
     }
 
     private fun answerText(text: String) = TextView(this).apply {
         this.text = text; typeface = Ui.figtree(this@ConversationActivity)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f); setTextColor(C(R.color.oc_text_bright))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f * cfg.chatTextScale); setTextColor(C(R.color.oc_text_bright))
         setLineSpacing(0f, 1.4f)
+        isLongClickable = true
+        setOnLongClickListener { showAnswerMenu(this.text.toString()); true }   // Copy / Play again
+    }
+
+    /** Long-press an answer → copy it to the clipboard or replay it aloud. */
+    private fun showAnswerMenu(text: String) {
+        if (text.isBlank()) return
+        Dialogs.menu(this, null, listOf(
+            Dialogs.Item("Copy") {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("openclaw", text))
+                Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show()
+            },
+            Dialogs.Item("Play again") {
+                startService(Intent(this, PttService::class.java)
+                    .setAction(PttService.ACTION_SPEAK_TEXT).putExtra("text", text))
+            },
+        ), closeLabel = null)
     }
 
     private fun dotsRow(): View {
@@ -343,14 +432,33 @@ class ConversationActivity : AppCompatActivity() {
         statusLabel.text = text
         stopBtn.visibility = if (stop) View.VISIBLE else View.GONE
     }
-    private fun clearStatus() { statusRow.visibility = View.GONE; currentPhase = "" }
+    private fun clearStatus() { statusLabel.removeCallbacks(thinkTick); statusRow.visibility = View.GONE; currentPhase = "" }
 
     private fun scrollToBottom() = scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
 
+    /**
+     * Repurpose the R1 scroll wheel inside ClawPTT. A Magisk keylayout overlay remaps the wheel
+     * (och1970_holl_key) to VOLUME_UP/DOWN system-wide — that replaces the Keymapper background
+     * service. Here we catch those keys and scroll the conversation instead, consuming them so the
+     * system volume never moves; volume in-app is the on-screen slider. Wheel = scroll, everywhere
+     * else = volume, with nothing running in the background.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    val d = dp(96f)
+                    scroll.smoothScrollBy(0, if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) -d else d)
+                }
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     // ---- actions ----
     private fun newChat() {
-        cfg.newConversation()
-        Conversation.clear(this)
+        cfg.newConversation()            // mint a new session key; old threads stay resumable
         send(PttService.ACTION_RESET)
         cancelThinking()
         turnActive = false; userBubbleAdded = false; pendingCard = null; pendingText = null
@@ -359,12 +467,54 @@ class ConversationActivity : AppCompatActivity() {
         Toast.makeText(this, "Started a fresh conversation", Toast.LENGTH_SHORT).show()
     }
 
-    private fun pill(text: String, onClick: () -> Unit) = TextView(this).apply {
-        this.text = text; gravity = Gravity.CENTER; typeface = Ui.figtreeSemibold(this@ConversationActivity)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f); setTextColor(C(R.color.oc_text_secondary))
+    /** Switch to (resume) a stored thread by pointing the active session key at it and reseeding. */
+    private fun switchTo(key: String) {
+        cfg.sessionKey = key
+        send(PttService.ACTION_RESET)
+        cancelThinking()
+        turnActive = false; userBubbleAdded = false; pendingCard = null; pendingText = null
+        clearStatus()
+        seed()
+    }
+
+    /** Conversation switcher: tap a thread to resume it (or New chat); long-press a thread to delete. */
+    private fun pickConversations() {
+        val items = ArrayList<Dialogs.Item>()
+        items.add(Dialogs.Item("＋  New chat") { newChat() })
+        Conversation.list(this).forEach { c ->
+            val active = c.key == cfg.sessionKey
+            items.add(Dialogs.Item((if (active) "•  " else "     ") + c.title, marked = active,
+                onLong = { confirmDeleteConversation(c) }) { switchTo(c.key) })
+        }
+        Dialogs.menu(this, "Conversations", items, closeLabel = "Close")
+    }
+
+    private fun confirmDeleteConversation(c: Conversation.Conv) {
+        Dialogs.confirm(this, "Delete conversation?",
+            "“${c.title}” will be removed from this device. The gateway keeps its own copy and archives idle sessions on its own.",
+            "Delete") {
+            val wasActive = c.key == cfg.sessionKey
+            Conversation.clear(this, c.key)
+            if (wasActive) newChat() else Toast.makeText(this, "Deleted", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun iconPillBtn(res: Int, onClick: () -> Unit) = FrameLayout(this).apply {
         background = Ui.pillStroke(this@ConversationActivity, C(R.color.oc_stroke))
-        setPadding(dp(18f), dp(9f), dp(18f), dp(9f))
+        addView(ImageView(this@ConversationActivity).apply {
+            setImageResource(res); setColorFilter(C(R.color.oc_accent_light))
+        }, FrameLayout.LayoutParams(dp(18f), dp(18f), Gravity.CENTER))
         isClickable = true; setOnClickListener { onClick() }
+    }
+
+    private fun volumeIconBtn(onClick: () -> Unit) = iconPillBtn(R.drawable.ic_volume, onClick)
+
+    /** Toggle the media-volume slider (the R1 wheel scrolls in-app, so this is the manual control). */
+    private fun toggleVolume() {
+        if (volSlider.visibility == View.GONE) {
+            volSlider.progress = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            volSlider.visibility = View.VISIBLE
+        } else volSlider.visibility = View.GONE
     }
 
     private fun send(action: String) = startService(Intent(this, PttService::class.java).setAction(action))

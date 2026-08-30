@@ -19,6 +19,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -64,7 +65,6 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(26f), 0, dp(26f), dp(20f))
         }
         root.addView(ScrollView(this).apply { addView(content) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
-        root.addView(footer())
         setContentView(root)
         render()
     }
@@ -89,42 +89,24 @@ class MainActivity : AppCompatActivity() {
         connText = TextView(this).apply {
             typeface = Ui.figtreeSemibold(this@MainActivity); setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             setTextColor(C(R.color.oc_text_tertiary))
+            maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
             text = if (cfg.baseUrl.isBlank()) "Not configured" else host(cfg.baseUrl)
         }
         cr.addView(connDot, LinearLayout.LayoutParams(dp(9f), dp(9f)).apply { rightMargin = dp(7f) })
         cr.addView(connText)
         col.addView(cr)
-        row.addView(col, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))   // takes the slack, pushes button right
+        row.addView(col, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))   // takes the slack, pushes buttons right
+        row.addView(btn("Chat", 0, C(R.color.oc_text_secondary), C(R.color.oc_stroke)) {
+            finish()   // settings sits on top of the chat home; just drop back to it
+        }.apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setPadding(dp(16f), dp(9f), dp(16f), dp(9f))
+        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { leftMargin = dp(8f) })
         row.addView(btn("Test", C(R.color.oc_accent), C(R.color.oc_on_accent)) { testConnection() }.apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             setPadding(dp(16f), dp(9f), dp(16f), dp(9f))
-        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { leftMargin = dp(10f) })
+        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { leftMargin = dp(8f) })
         return row
-    }
-
-    private fun footer(): View {
-        val f = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(26f), dp(8f), dp(26f), dp(14f))
-        }
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        fun spacer() = View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8f), 1) }
-        row.addView(btn("Chat", 0, C(R.color.oc_text_secondary), C(R.color.oc_stroke)) {
-            startActivity(Intent(this, ConversationActivity::class.java))
-        }, LinearLayout.LayoutParams(0, dp(48f), 1f))
-        row.addView(spacer())
-        row.addView(btn("History", 0, C(R.color.oc_text_secondary), C(R.color.oc_stroke)) {
-            startActivity(Intent(this, HistoryActivity::class.java))
-        }, LinearLayout.LayoutParams(0, dp(48f), 1f))
-        row.addView(spacer())
-        row.addView(btn("New chat", 0, C(R.color.oc_text_secondary), C(R.color.oc_stroke)) {
-            cfg.newConversation()      // resets the OpenClaw session key -> fresh thread
-            Conversation.clear(this)   // and clears the persisted chat-page thread
-            startService(Intent(this, PttService::class.java).setAction(PttService.ACTION_RESET))  // next hold = one-off panel
-            Toast.makeText(this, "Started a fresh conversation", Toast.LENGTH_SHORT).show()
-        }, LinearLayout.LayoutParams(0, dp(48f), 1f))
-        f.addView(row)
-        return f
     }
 
     // ---------- render body ----------
@@ -133,11 +115,17 @@ class MainActivity : AppCompatActivity() {
 
         sectionHeader("Gateway")
         content.addView(valueRow("openclaw host", cfg.baseUrl.ifBlank { "Not set" }, mono = true) {
-            edit("openclaw host", cfg.baseUrl, false) { cfg.baseUrl = it.trimEnd('/'); render() }
+            edit("openclaw host", cfg.baseUrl, false) { cfg.baseUrl = it.trimEnd('/'); GatewayCatalog.clear(); render() }
         })
         content.addView(gap(10))
         content.addView(maskedRow("Gateway token", cfg.token, "gwTok") {
-            edit("Gateway token", cfg.token, true) { cfg.token = it; render() }
+            edit("Gateway token", cfg.token, true) { cfg.token = it; GatewayCatalog.clear(); render() }
+        })
+        content.addView(gap(10))
+        content.addView(valueRow("Agent", cfg.model, mono = true) { pickAgent() })
+        content.addView(gap(10))
+        content.addView(valueRow("Model override", cfg.underlyingModel.ifBlank { "Agent default" }, mono = true) {
+            edit("Underlying model (x-openclaw-model)", cfg.underlyingModel, false) { cfg.underlyingModel = it.trim(); render() }
         })
         content.addView(gap(10))
         content.addView(toggleRow("Auto-reconnect", "Retry on wake", cfg.autoReconnect) { cfg.autoReconnect = it })
@@ -152,10 +140,16 @@ class MainActivity : AppCompatActivity() {
         content.addView(hint(ttsDesc()))
         ttsFields()
 
+        sectionHeader("Appearance")
+        content.addView(sliderRow("Chat text size", "Message text on the conversation page",
+            0.8f, 1.8f, 0.1f, cfg.chatTextScale, { "${Math.round(it * 100)}%" }) { cfg.chatTextScale = it })
+
         sectionHeader("Behavior")
         content.addView(toggleRow("Show over lock screen", "Panel wakes the display", cfg.showOverLock) { cfg.showOverLock = it })
         content.addView(gap(10))
         content.addView(toggleRow("Speak replies aloud", "Off shows text only", cfg.speakAloud) { cfg.speakAloud = it })
+        content.addView(gap(10))
+        content.addView(toggleRow("Reply notifications", "Ping when the agent finishes if you've navigated away", cfg.notifyReplies) { cfg.notifyReplies = it })
         content.addView(gap(10))
         content.addView(toggleRow("Pre-generate audio", "Text-only: ready the play button in the background", cfg.preGenAudio) { cfg.preGenAudio = it })
         content.addView(gap(10))
@@ -194,11 +188,15 @@ class MainActivity : AppCompatActivity() {
 
     // ---------- STT ----------
     private fun sttPicker(): View {
-        val items = listOf("Self-host" to Config.SttMode.GATEWAY, "whisperIME" to Config.SttMode.SPEECH_RECOGNIZER,
-            "Vosk" to Config.SttMode.VOSK, "OpenAI" to Config.SttMode.OPENAI_WHISPER,
+        val items = listOf("Self-host Whisper" to Config.SttMode.GATEWAY, "whisperIME (on-device)" to Config.SttMode.SPEECH_RECOGNIZER,
+            "Vosk (offline)" to Config.SttMode.VOSK, "OpenAI Whisper" to Config.SttMode.OPENAI_WHISPER,
             "Venice" to Config.SttMode.VENICE)
-        return gridPicker(items.map { it.first }, 2, items.indexOfFirst { it.second == cfg.sttMode },
-            C(R.color.oc_sage_light), C(R.color.oc_on_sage)) { i -> cfg.sttMode = items[i].second; render() }
+        val current = items.firstOrNull { it.second == cfg.sttMode }?.first ?: items[0].first
+        return dropdownRow("Engine", current) {
+            Dialogs.menu(this, "Speech to text",
+                items.map { (label, mode) -> Dialogs.Item(label, marked = mode == cfg.sttMode) { cfg.sttMode = mode; render() } },
+                closeLabel = "Cancel")
+        }
     }
 
     private fun sttDesc() = when (cfg.sttMode) {
@@ -252,10 +250,14 @@ class MainActivity : AppCompatActivity() {
 
     // ---------- TTS ----------
     private fun ttsPicker(): View {
-        val items = listOf("Sherpa" to Config.TtsMode.SYSTEM, "Kokoro" to Config.TtsMode.KOKORO,
-            "Venice" to Config.TtsMode.VENICE, "Eleven" to Config.TtsMode.ELEVENLABS)
-        return grid2x2(items.map { it.first }, items.indexOfFirst { it.second == cfg.ttsMode },
-            C(R.color.oc_accent), C(R.color.oc_on_accent)) { i -> cfg.ttsMode = items[i].second; render() }
+        val items = listOf("Sherpa (system)" to Config.TtsMode.SYSTEM, "Kokoro (self-host)" to Config.TtsMode.KOKORO,
+            "Venice" to Config.TtsMode.VENICE, "ElevenLabs" to Config.TtsMode.ELEVENLABS)
+        val current = items.firstOrNull { it.second == cfg.ttsMode }?.first ?: items[0].first
+        return dropdownRow("Engine", current) {
+            Dialogs.menu(this, "Text to speech",
+                items.map { (label, mode) -> Dialogs.Item(label, marked = mode == cfg.ttsMode) { cfg.ttsMode = mode; render() } },
+                closeLabel = "Cancel")
+        }
     }
 
     private fun ttsDesc() = when (cfg.ttsMode) {
@@ -342,13 +344,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Live OpenClaw agent picker (GET /v1/models). Falls back to manual entry if the fetch fails. */
+    private fun pickAgent() {
+        if (cfg.baseUrl.isBlank() || cfg.token.isBlank()) {
+            Toast.makeText(this, "Set the gateway host and token first", Toast.LENGTH_SHORT).show(); return
+        }
+        Toast.makeText(this, "Loading agents…", Toast.LENGTH_SHORT).show()
+        GatewayCatalog.load(cfg.baseUrl, cfg.token) { ids ->
+            if (ids.isNullOrEmpty()) {   // fetch failed — fall back to manual entry
+                edit("Agent target (e.g. openclaw/default)", cfg.model, false) {
+                    cfg.model = it.trim().ifBlank { "openclaw/default" }; render()
+                }
+                return@load
+            }
+            pickFromList("Agent", ids, cfg.model) { cfg.model = it; render() }
+        }
+    }
+
     private fun pickFromList(title: String, items: List<String>, current: String, onPick: (String) -> Unit) {
-        val arr = items.toTypedArray()
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle(title)
-            .setSingleChoiceItems(arr, items.indexOf(current)) { d, i -> onPick(arr[i]); d.dismiss() }
-            .setNegativeButton("Cancel", null)
-            .show()
+        Dialogs.menu(this, title, items.map { s -> Dialogs.Item(s, marked = s == current) { onPick(s) } }, closeLabel = "Cancel")
     }
 
     // ---------- Vosk card ----------
@@ -391,6 +405,20 @@ class MainActivity : AppCompatActivity() {
     private fun cardBase() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; background = Ui.card(this@MainActivity, C(R.color.oc_surface), 10f)
         setPadding(dp(18f), dp(16f), dp(18f), dp(16f))
+    }
+
+    /** A single-line "Label ……… Value ▾" row that opens a themed picker — compact vs. a grid. */
+    private fun dropdownRow(label: String, value: String, onTap: () -> Unit): View {
+        val card = cardBase().apply { isClickable = true; setOnClickListener { onTap() } }
+        val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        r.addView(body(label, C(R.color.oc_text), 12.5f), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        r.addView(body(value, C(R.color.oc_accent_light), 12.5f))
+        r.addView(TextView(this).apply {
+            text = "  ▾"; typeface = Ui.figtree(this@MainActivity)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f); setTextColor(C(R.color.oc_text_tertiary))
+        })
+        card.addView(r)
+        return card
     }
 
     private fun valueRow(sub: String, value: String, mono: Boolean = false, onEdit: () -> Unit): View {
@@ -452,60 +480,33 @@ class MainActivity : AppCompatActivity() {
         return card
     }
 
-    private fun grid2x2(labels: List<String>, sel: Int, selFill: Int, selText: Int, onSel: (Int) -> Unit): View {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; background = Ui.card(this@MainActivity, C(R.color.oc_surface), 12f); setPadding(dp(5f), dp(5f), dp(5f), dp(5f))
-        }
-        for (rowI in 0..1) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (colI in 0..1) {
-                val i = rowI * 2 + colI
-                row.addView(segment(labels[i], i == sel, selFill, selText) { onSel(i) }, LinearLayout.LayoutParams(0, dp(46f), 1f).apply {
-                    if (colI == 0) rightMargin = dp(5f)
-                })
-            }
-            container.addView(row, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { if (rowI == 0) bottomMargin = dp(5f) })
-        }
-        return container
-    }
-
-    /** Grid of `cols` columns and as many rows as needed; a partial last row stretches to fill. */
-    private fun gridPicker(labels: List<String>, cols: Int, sel: Int, selFill: Int, selText: Int, onSel: (Int) -> Unit): View {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; background = Ui.card(this@MainActivity, C(R.color.oc_surface), 12f); setPadding(dp(5f), dp(5f), dp(5f), dp(5f))
-        }
-        val rows = (labels.size + cols - 1) / cols
-        for (rowI in 0 until rows) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (colI in 0 until cols) {
-                val i = rowI * cols + colI
-                if (i >= labels.size) break
-                row.addView(segment(labels[i], i == sel, selFill, selText) { onSel(i) },
-                    LinearLayout.LayoutParams(0, dp(46f), 1f).apply { if (colI < cols - 1) rightMargin = dp(5f) })
-            }
-            container.addView(row, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { if (rowI < rows - 1) bottomMargin = dp(5f) })
-        }
-        return container
-    }
-
-    private fun rowPicker(labels: List<String>, sel: Int, selFill: Int, selText: Int, onSel: (Int) -> Unit): View {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; background = Ui.card(this@MainActivity, C(R.color.oc_surface), 999f); setPadding(dp(5f), dp(5f), dp(5f), dp(5f))
-        }
-        labels.forEachIndexed { i, l ->
-            container.addView(segment(l, i == sel, selFill, selText) { onSel(i) }, LinearLayout.LayoutParams(0, dp(46f), 1f).apply {
-                if (i == 0) rightMargin = dp(5f)
+    private fun sliderRow(title: String, sub: String, min: Float, max: Float, step: Float,
+                          current: Float, fmt: (Float) -> String, onChange: (Float) -> Unit): View {
+        val card = cardBase()
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val value = body(fmt(current), C(R.color.oc_accent_light), 12.5f).apply { gravity = Gravity.END }
+        head.addView(body(title, C(R.color.oc_text), 12.5f), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        head.addView(value)
+        card.addView(head)
+        card.addView(caption(sub, C(R.color.oc_text_tertiary)))
+        val steps = Math.round((max - min) / step)
+        card.addView(SeekBar(this).apply {
+            this.max = steps
+            progress = Math.round((current - min) / step).coerceIn(0, steps)
+            val tint = ColorStateList.valueOf(C(R.color.oc_accent))
+            progressTintList = tint; thumbTintList = tint
+            setPadding(0, dp(12f), 0, dp(2f))
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                    val v = min + p * step
+                    value.text = fmt(v)
+                    if (fromUser) onChange(v)
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
             })
-        }
-        return container
-    }
-
-    private fun segment(text: String, selected: Boolean, selFill: Int, selText: Int, onClick: () -> Unit) = TextView(this).apply {
-        this.text = text; gravity = Gravity.CENTER
-        typeface = Ui.figtreeSemibold(this@MainActivity); setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-        setTextColor(if (selected) selText else C(R.color.oc_text_tertiary))
-        background = if (selected) Ui.pill(selFill) else null
-        isClickable = true; setOnClickListener { onClick() }
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4f) })
+        return card
     }
 
     private fun fieldCard(accent: Int, cardContent: View): View {
@@ -562,16 +563,8 @@ class MainActivity : AppCompatActivity() {
     private fun host(url: String) = url.removePrefix("https://").removePrefix("http://").trimEnd('/')
 
     // ---------- actions ----------
-    private fun edit(title: String, current: String, password: Boolean, onSave: (String) -> Unit) {
-        val input = EditText(this).apply {
-            setText(current)
-            inputType = if (password) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD else InputType.TYPE_CLASS_TEXT
-            setSelection(text.length)
-        }
-        AlertDialog.Builder(this).setTitle(title).setView(input)
-            .setPositiveButton("Save") { _, _ -> onSave(input.text.toString()) }
-            .setNegativeButton("Cancel", null).show()
-    }
+    private fun edit(title: String, current: String, password: Boolean, onSave: (String) -> Unit) =
+        Dialogs.input(this, title, current, password, onSave)
 
     private fun testConnection() {
         connText.text = "Testing…"; connDot.background = Ui.pill(C(R.color.oc_text_quaternary))

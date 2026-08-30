@@ -6,7 +6,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.graphics.Typeface
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -15,6 +17,7 @@ import android.os.SystemClock
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -24,6 +27,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 
 /**
@@ -42,10 +46,14 @@ class PttActivity : Activity() {
     private lateinit var statusDot: View
     private lateinit var statusLabel: TextView
     private lateinit var statusTimer: TextView
+    private lateinit var cancelBtn: View        // circular X, top-right on the Thinking screen
     private lateinit var center: FrameLayout
     private lateinit var actions: LinearLayout
     private lateinit var mascot: ImageView
     private lateinit var glow: View
+    private lateinit var audio: AudioManager
+    private lateinit var volSlider: SeekBar
+    private var answerScroll: ScrollView? = null   // set on the answer screen so the wheel scrolls it
 
     private val ui = Handler(Looper.getMainLooper())
     private var breathe: ValueAnimator? = null
@@ -56,6 +64,37 @@ class PttActivity : Activity() {
             statusTimer.text = "%d:%02d".format(s / 60, s % 60)
             ui.postDelayed(this, 500)
         }
+    }
+    private var thinkStart = 0L
+    private var renderedPhase = ""
+    private var thinkSub: TextView? = null      // the line under the dots on the Thinking screen
+    private var currentTool: String? = null     // set only if the gateway ever streams a tool name
+    private val thinkTick = object : Runnable {  // elapsed counter + staged progress while the agent works
+        override fun run() {
+            val s = (SystemClock.elapsedRealtime() - thinkStart) / 1000
+            statusTimer.text = "%d:%02d".format(s / 60, s % 60)
+            updateThinkSub(s)
+            ui.postDelayed(this, 500)
+        }
+    }
+
+    // OpenClaw runs its agent tools server-side and streams nothing during that wait (no tool_calls
+    // over the OpenAI API — verified), so the only honest live signal is elapsed time. Escalate the
+    // wording so a long, silent tool-using turn stays legible. If the gateway ever does surface a
+    // tool name, show that instead.
+    private fun updateThinkSub(sec: Long) {
+        val sub = thinkSub ?: return
+        val tool = currentTool
+        val (text, accent) = when {
+            tool != null -> tool to true
+            sec < 4L     -> "Sent to openclaw" to false
+            sec < 10L    -> "Working…" to false
+            sec < 25L    -> "Still working…" to false
+            sec < 45L    -> "Running a longer task…" to false
+            else         -> "Still on it — hang tight…" to false
+        }
+        sub.text = text
+        sub.setTextColor(C(if (accent) R.color.oc_accent_light else R.color.oc_text_secondary))
     }
 
     private val receiver = object : BroadcastReceiver() {
@@ -86,11 +125,15 @@ class PttActivity : Activity() {
             typeface = Typeface.MONOSPACE; setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f + bump)
             setTextColor(C(R.color.oc_sage_dim)); gravity = Gravity.END; visibility = View.GONE
         }
+        cancelBtn = circleIconBtn(R.drawable.ic_close, C(R.color.oc_text_secondary)) {
+            send(PttService.ACTION_CANCEL); finish()
+        }.apply { visibility = View.GONE }
         statusRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             addView(statusDot, LinearLayout.LayoutParams(dp(9f), dp(9f)).apply { rightMargin = dp(9f) })
             addView(statusLabel)
             addView(statusTimer, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(cancelBtn, LinearLayout.LayoutParams(dp(32f), dp(32f)).apply { leftMargin = dp(10f) })
         }
         center = FrameLayout(this).apply { clipChildren = false }
         actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
@@ -98,26 +141,52 @@ class PttActivity : Activity() {
         glow = View(this)
         mascot = ImageView(this).apply { setImageResource(R.drawable.mascot); scaleType = ImageView.ScaleType.FIT_CENTER }
 
+        // Persistent volume slider (lives in root so streaming re-renders don't rebuild/reset it).
+        audio = getSystemService(AudioManager::class.java)
+        volSlider = SeekBar(this).apply {
+            max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            progress = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val tint = ColorStateList.valueOf(C(R.color.oc_accent))
+            progressTintList = tint; thumbTintList = tint
+            setPadding(dp(28f), dp(2f), dp(28f), dp(6f)); visibility = View.GONE
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                    if (fromUser) audio.setStreamVolume(AudioManager.STREAM_MUSIC, p, 0)
+                }
+                override fun onStartTrackingTouch(sb: SeekBar) {}
+                override fun onStopTrackingTouch(sb: SeekBar) {}
+            })
+        }
+
         root.addView(statusRow, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(center, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+        root.addView(volSlider, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(actions, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(14f) })
         setContentView(root)
 
         render(intent?.getStringExtra("phase") ?: "IDLE",
-            intent?.getStringExtra("status") ?: "", intent?.getStringExtra("body") ?: "", "")
+            intent?.getStringExtra("status") ?: "", intent?.getStringExtra("body") ?: "",
+            intent?.getStringExtra("recap") ?: "")
     }
 
     private fun render(phase: String, status: String, body: String, recap: String) {
-        stopBreathe(); ui.removeCallbacks(timerTick); statusTimer.visibility = View.GONE
+        stopBreathe(); ui.removeCallbacks(timerTick); ui.removeCallbacks(thinkTick)
+        statusTimer.visibility = View.GONE; cancelBtn.visibility = View.GONE
         center.removeAllViews(); actions.removeAllViews(); detach(mascot); detach(glow)
+        if (phase != "SPEAKING" && phase != "READ") volSlider.visibility = View.GONE   // only on the answer screen
         when (phase) {
             "LISTENING" -> renderListening(body)
-            "THINKING" -> renderThinking(body)
+            "THINKING" -> {
+                if (renderedPhase != "THINKING") thinkStart = SystemClock.elapsedRealtime()  // keep counting across tool updates
+                currentTool = status.takeIf { it.startsWith("🔧") }?.removePrefix("🔧")?.trim()
+                renderThinking(body)
+            }
             "SPEAKING" -> renderAnswer(true, body, recap)
             "READ" -> renderAnswer(false, body, recap)
             "MSG" -> renderMessage(status.ifBlank { body })
             else -> renderIdle()
         }
+        renderedPhase = phase
     }
 
     private fun renderIdle() {
@@ -152,15 +221,24 @@ class PttActivity : Activity() {
     private fun renderThinking(transcript: String) {
         root.background = Ui.bgGradient(C(R.color.oc_bg_grad_top), C(R.color.oc_bg_grad_bottom))
         setStatus(C(R.color.oc_accent_light), "thinking", C(R.color.oc_text_secondary))
-        val block = orbBlock(140, 168, glowCol(R.color.oc_accent, 0.20f), 0.45f, 0.78f)
-        block.addView(spacer(16)); block.addView(dots()); block.addView(spacer(14))
-        block.addView(bodyText("Sent to openclaw", C(R.color.oc_text_tertiary), 11f, 340, 1))
+        // Elapsed counter + a cancel X, aligned together in the top-right of the status row.
+        statusTimer.setTextColor(C(R.color.oc_accent_light)); statusTimer.visibility = View.VISIBLE
+        cancelBtn.visibility = View.VISIBLE; ui.post(thinkTick)
+        // Mirror the listening screen: full-brightness mascot + breathing glow. Only the modal
+        // differs (dots instead of the waveform). The whole area below is given to the inquiry.
+        val block = orbBlock(146, 178, glowCol(R.color.oc_accent, 0.30f), 1f, 1f)
+        block.addView(spacer(14)); block.addView(dots()); block.addView(spacer(16))
+        // Time-driven progress line (escalated by thinkTick as the silent agent wait grows).
+        val sub = bodyText("Sent to openclaw", C(R.color.oc_text_secondary), 11f, 340, 1)
+        thinkSub = sub; updateThinkSub((SystemClock.elapsedRealtime() - thinkStart) / 1000)
+        block.addView(sub)
         if (transcript.isNotBlank()) {
-            block.addView(spacer(6))
-            block.addView(bodyText(transcript.trim('“', '”', '"'), C(R.color.oc_text_quaternary), 10f, 340, 2))
+            block.addView(spacer(12))
+            // Bright, larger, room for the full inquiry (no 2-line truncation).
+            block.addView(bodyText(transcript.trim('“', '”', '"'), C(R.color.oc_transcript), 13f, 9999, 12))
         }
         center.addView(block, centerParams())
-        actions.addView(btn("Cancel", 0, C(R.color.oc_text_secondary), C(R.color.oc_stroke)) { send(PttService.ACTION_CANCEL); finish() }, full())
+        startBreathe(2400)
     }
 
     /** Merged Speaking + Response: one scrollable document. */
@@ -180,34 +258,48 @@ class PttActivity : Activity() {
         header.addView(ring, LinearLayout.LayoutParams(dp(34f), dp(34f)).apply { rightMargin = dp(11f) })
         header.addView(label(if (speaking) "speaking" else "response", C(R.color.oc_text_secondary)),
             LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        // Top-right: open the continuous chat page (hands off from this one-off panel).
+        // Top-right: volume slider toggle + open the continuous chat page (hand-off).
+        header.addView(iconBtn(R.drawable.ic_volume, C(R.color.oc_accent_light)) { toggleVol() },
+            LinearLayout.LayoutParams(dp(44f), dp(36f)).apply { rightMargin = dp(8f) })
         header.addView(iconBtn(R.drawable.ic_chat, C(R.color.oc_accent_light)) {
             startActivity(Intent(this, ConversationActivity::class.java)); finish()
         }, LinearLayout.LayoutParams(dp(44f), dp(36f)))
         doc.addView(header)
 
         if (recap.isNotBlank()) {
-            doc.addView(spacer(16))
+            doc.addView(spacer(10))
             val q = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             q.addView(iconView(R.drawable.ic_mic, C(R.color.oc_text_quaternary)),
                 LinearLayout.LayoutParams(dp(18f), dp(18f)).apply { rightMargin = dp(10f); topMargin = dp(3f) })
-            q.addView(bodyText(recap.trim('“', '”', '"'), C(R.color.oc_text_tertiary), 10.5f, 9999, 2).apply { gravity = Gravity.START })
-            doc.addView(q)
+            // Tap the inquiry to reveal it in full when it's longer than the two shown lines.
+            val recapView = bodyText(recap.trim('“', '”', '"'), C(R.color.oc_text_tertiary), 10.5f, 9999, 2).apply {
+                gravity = Gravity.START
+                setOnClickListener {
+                    val collapsed = maxLines <= 2
+                    maxLines = if (collapsed) Integer.MAX_VALUE else 2
+                    ellipsize = if (collapsed) null else TextUtils.TruncateAt.END
+                }
+            }
+            q.addView(recapView, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            doc.addView(q, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))   // full width so the weighted text shows
         }
-        doc.addView(spacer(16)); doc.addView(rule()); doc.addView(spacer(16))
+        doc.addView(spacer(10)); doc.addView(rule()); doc.addView(spacer(10))
 
         val answerView = bodyText(answer, C(R.color.oc_text_bright), 12.5f, 9999, 999).apply { gravity = Gravity.START }
-        doc.addView(ScrollView(this).apply { addView(answerView); isVerticalScrollBarEnabled = true },
+        doc.addView(ScrollView(this).apply { addView(answerView); isVerticalScrollBarEnabled = true; answerScroll = this },
             LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         center.addView(doc, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
 
+        // Compact action row (smaller pill) so more of the answer stays on screen.
         actions.addView(iconBtn(R.drawable.ic_volume, C(R.color.oc_accent_light)) { send(PttService.ACTION_SPEAK) },
-            LinearLayout.LayoutParams(dp(62f), dp(56f)))
+            LinearLayout.LayoutParams(dp(50f), dp(46f)))
         actions.addView(gap())
         if (speaking)
-            actions.addView(btn("Stop speaking", C(R.color.oc_accent), C(R.color.oc_on_accent)) { send(PttService.ACTION_MUTE) }, grow())
+            actions.addView(btn("Stop speaking", C(R.color.oc_accent), C(R.color.oc_on_accent)) { send(PttService.ACTION_MUTE) }
+                .apply { setPadding(dp(28f), 0, dp(28f), 0) }, LinearLayout.LayoutParams(WRAP_CONTENT, dp(46f)))
         else
-            actions.addView(btn("Close", C(R.color.oc_accent), C(R.color.oc_on_accent)) { send(PttService.ACTION_DISMISS); finish() }, grow())
+            actions.addView(btn("Close", C(R.color.oc_accent), C(R.color.oc_on_accent)) { send(PttService.ACTION_DISMISS); finish() }
+                .apply { setPadding(dp(34f), 0, dp(34f), 0) }, LinearLayout.LayoutParams(WRAP_CONTENT, dp(46f)))
     }
 
     private fun renderMessage(msg: String) {
@@ -307,6 +399,12 @@ class PttActivity : Activity() {
         isClickable = true; setOnClickListener { onClick() }
     }
 
+    private fun circleIconBtn(res: Int, tint: Int, onClick: () -> Unit) = FrameLayout(this).apply {
+        background = Ui.pillStroke(this@PttActivity, C(R.color.oc_stroke))   // square + full radius = circle
+        addView(iconView(res, tint), FrameLayout.LayoutParams(dp(17f), dp(17f), Gravity.CENTER))
+        isClickable = true; setOnClickListener { onClick() }
+    }
+
     private fun iconView(res: Int, tint: Int) = ImageView(this).apply { setImageResource(res); setColorFilter(tint) }
     private fun rule() = View(this).apply { setBackgroundColor(C(R.color.oc_divider)); layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 1) }
     private fun spacer(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(h.toFloat())) }
@@ -328,6 +426,33 @@ class PttActivity : Activity() {
     private fun detach(v: View) { (v.parent as? FrameLayout)?.removeView(v); (v.parent as? LinearLayout)?.removeView(v) }
     private fun glowCol(res: Int, a: Float) = Ui.colorWithAlpha(C(res), a)
     private fun send(action: String) = startService(Intent(this, PttService::class.java).setAction(action))
+
+    /** Toggle the media-volume slider (the R1 wheel scrolls in-app, so this is the manual control). */
+    private fun toggleVol() {
+        if (volSlider.visibility == View.GONE) {
+            volSlider.progress = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            volSlider.visibility = View.VISIBLE
+        } else volSlider.visibility = View.GONE
+    }
+
+    /**
+     * The R1 scroll wheel is remapped to VOLUME_UP/DOWN by a Magisk keylayout overlay (replacing the
+     * Keymapper background service). On the answer screen we intercept those keys to scroll the
+     * response instead, consuming them so the system volume stays put — volume here is the on-screen
+     * slider. Off the answer screen there's nothing to scroll, so we let the keys fall through.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val sc = answerScroll
+        if (sc != null && sc.isShown &&
+            (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val d = dp(96f)
+                sc.smoothScrollBy(0, if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) -d else d)
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onResume() {
         super.onResume()

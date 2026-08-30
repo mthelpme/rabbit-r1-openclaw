@@ -1,0 +1,6 @@
+id=r1_wheel_remap
+name=Rabbit R1 Scroll-Wheel to Volume
+version=v1.0
+versionCode=1
+author=recovery
+description=Remaps the R1 scroll wheel (och1970_holl_key, scancodes 103/108 = KEY_UP/KEY_DOWN) to VOLUME_UP/VOLUME_DOWN system-wide via a keylayout overlay. Replaces the Keymapper background service. ClawPTT re-catches these keys to scroll its windows, so the wheel still scrolls in-app.
