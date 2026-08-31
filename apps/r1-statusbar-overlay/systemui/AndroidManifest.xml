@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.r1statusbar.overlay">
+    <application android:hasCode="false" />
+    <!-- Enabled at boot by magisk-modules/statusbar-overlay/service.sh. -->
+    <overlay
+        android:targetPackage="com.android.systemui"
+        android:isStatic="false"
+        android:priority="1" />
+</manifest>

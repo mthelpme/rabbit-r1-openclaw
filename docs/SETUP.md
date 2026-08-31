@@ -91,7 +91,80 @@ needs a framework hook (Xposed). LSPosed proper is archived; use its maintained 
 
 See [`apps/r1-immersive`](../apps/r1-immersive) for details.
 
-## 7. (Optional) Self-hosted STT / TTS
+## 7. (Optional) Custom lockscreen
+
+The stock keyguard is laid out for a large phone: on this GSI the panel reports **480×640 @
+density 220** (~349×465dp) and AOSP's `large_clock_text_size` is **150dp** — about a third of the
+screen height for the clock alone. Two independent pieces fix that; neither runs code inside
+SystemUI, so neither can leave you unable to unlock.
+
+**a. Mascot lock wallpaper** (no root, no overlay):
+
+```sh
+python3 tools/make-lock-wallpaper.py            # → dist/lock-wallpaper.png
+adb push dist/lock-wallpaper.png /sdcard/Pictures/
+```
+Then on the R1: Files/Gallery → the image → **Set as wallpaper → Lock screen**.
+
+**b. Resource overlays** — a SystemUI one (smaller clock, tighter gutters) and a framework one
+(slimmer, recoloured pattern grid), plus hiding lockscreen notifications:
+
+```sh
+tools/recon-lockscreen.sh              # FIRST: dump this build's real resource names
+apps/r1-lockscreen-overlay/build.sh    # builds + signs the RRO, warns about names that don't exist
+magisk-modules/build-all.sh            # → magisk-modules/dist/lockscreen-overlay.zip
+```
+Flash the zip in Magisk → reboot.
+
+> **Run the recon step.** An overlay override for a resource name that doesn't exist in your build
+> is silently ignored — no error, no effect. `build.sh` cross-checks against the recon dump and
+> prints `MISS` for dead entries.
+
+Overlays can only *replace* resources SystemUI already has, so they can't add a mascot image — that
+is why the mascot is a wallpaper. See [`apps/r1-lockscreen-overlay`](../apps/r1-lockscreen-overlay)
+and [`tools/`](../tools).
+
+**c. Xposed module** — for the parts that aren't resource values at all: centring the clock/date
+(pinned by a `layout_alignParentStart` literal), hiding the lock icon (driven by
+`LockIconViewController` in code), and hiding the bouncer's emergency button (needs `visibility`
+in a layout). Needs Vector from step 6:
+
+```sh
+cd apps/r1-lockscreen-tweaks && ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+CLI=/data/adb/modules/zygisk_vector/cli
+adb shell su -c "sh $CLI modules enable com.r1lockscreen"
+adb shell su -c "sh $CLI scope set com.r1lockscreen com.android.systemui/0"
+adb shell su -c "killall com.android.systemui"
+```
+
+It also restores the `openclaw` carrier label (see that README for why the telephony database
+can't hold it). Scope it to **`com.android.systemui` only** — unlike R1 Immersive, it needs nothing wider. This is
+the one lockscreen piece that runs code inside SystemUI, so it is also the one that could leave you
+unable to unlock; `adbd` is independent of SystemUI, so the disable command in
+[`apps/r1-lockscreen-tweaks`](../apps/r1-lockscreen-tweaks) works even from a broken keyguard.
+Note it also hides the emergency-call button — see that README if you want to keep it.
+
+The two overlays are separate packages, so either can be disabled on its own. The framework one is
+the riskier — it targets `android`, so a bad value there can boot-loop rather than just restart
+SystemUI:
+```sh
+adb shell su -c "cmd overlay disable com.r1lockscreen.pattern"   # pattern grid only
+adb shell su -c "cmd overlay disable com.r1lockscreen.overlay"   # clock only
+```
+
+**d. Status bar** — blank the mobile data-type indicator (`LTE` / `5G` / `H+`) while keeping the
+signal bars:
+
+```sh
+apps/r1-statusbar-overlay/build.sh
+magisk-modules/build-all.sh        # → magisk-modules/dist/statusbar-overlay.zip
+```
+Flash the zip in Magisk → reboot. `icon_blacklist` can't do this — its only relevant slot is
+`mobile`, which would hide the signal bars too. See
+[`apps/r1-statusbar-overlay`](../apps/r1-statusbar-overlay).
+
+## 8. (Optional) Self-hosted STT / TTS
 
 On-device STT (Vosk) and TTS (SherpaTTS) work offline but are slower. For snappier, higher-quality
 speech, run the bundled services on your server and expose them to the R1 over **Tailscale** (no
@@ -104,7 +177,7 @@ public ports):
 
 Each has a README with `uvicorn` run + `tailscale serve` exposure + a curl test.
 
-## 8. Configure ClawPTT
+## 9. Configure ClawPTT
 
 In ClawPTT settings:
 - **Gateway**: your OpenAI-compatible base URL (e.g. `https://host.your-tailnet.ts.net`) + bearer
@@ -118,7 +191,7 @@ In ClawPTT settings:
 
 All of these are stored **encrypted on-device**; nothing is hardcoded or committed.
 
-## 9. Use it
+## 10. Use it
 
 Hold the side button, speak, release. Text streams in and (if enabled) is spoken. Hold again to
 continue the conversation — after the first reply it opens a persistent **chat page**. There's also

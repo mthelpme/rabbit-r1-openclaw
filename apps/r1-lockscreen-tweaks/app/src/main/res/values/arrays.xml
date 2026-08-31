@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Scope: SystemUI ONLY. Unlike r1-immersive (which must reach every app because the hook lives
+      in android.app.Activity), every view this module touches is inflated inside SystemUI, so a
+      narrow scope is both sufficient and much safer.
+    -->
+    <string-array name="xposedscope">
+        <item>com.android.systemui</item>
+    </string-array>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pattern grid geometry. Defaults confirmed on-device via tools/recon-lockscreen.sh. -->
+<resources>
+    <!-- 14dp -> 10dp: smaller resting dots read as calmer at this screen size. -->
+    <dimen name="lock_pattern_dot_size">10dp</dimen>
+    <!-- 30dp -> 20dp: keeps the touch feedback proportional to the smaller dot. -->
+    <dimen name="lock_pattern_dot_size_activated">20dp</dimen>
+    <!-- 22dp -> 10dp: the stock trail is very heavy; 10dp is a line rather than a bar. -->
+    <dimen name="lock_pattern_dot_line_width">10dp</dimen>
+</resources>

@@ -1,0 +1,6 @@
+id=r1_lockscreen_overlay
+name=R1 Lockscreen (SystemUI + pattern overlays)
+version=v1.0
+versionCode=1
+author=recovery
+description=Retunes the keyguard for the R1's 480x640 panel via two RROs: a SystemUI overlay (smaller clock, tighter gutters) and a framework overlay (slimmer, recoloured pattern grid). Also hides lockscreen notifications. Pairs with the mascot lock wallpaper (tools/make-lock-wallpaper.py). Reboot after install/remove.

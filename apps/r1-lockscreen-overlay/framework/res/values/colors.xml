@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Palette from apps/r1-tools (MainActivity.kt) so the bouncer matches the rest of the device.
+  Both defaults are #ffffffff.
+-->
+<resources>
+    <!-- Resting dots: sage, calm against the mascot wallpaper. -->
+    <color name="lock_pattern_view_regular_color">#FF8FA073</color>
+    <!-- Correct-pattern trail: the R1 Tools accent. -->
+    <color name="lock_pattern_view_success_color">#FFD67F48</color>
+</resources>

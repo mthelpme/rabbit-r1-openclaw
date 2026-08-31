@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Keyguard indication strings, blanked.
+
+  These render in the indication area at the bottom of the lockscreen. That same view also shows
+  "Charged", "Wrong pattern, try again", and lockout warnings — which is why this blanks the two
+  specific hint strings rather than hiding the view. The useful feedback stays.
+
+  Defaults on this build (read from the device's own SystemUI.apk):
+    keyguard_unlock        "Swipe up to open"
+    keyguard_unlock_press  "Press the unlock icon to open"
+
+  keyguard_unlock_press is blanked because apps/r1-lockscreen-tweaks hides the lock icon — leaving
+  it would tell you to press something that is not on screen.
+
+  Two related strings are deliberately left alone; blank them here if you want them gone too:
+    keyguard_retry              "Swipe up to try again"      (after a failed biometric)
+    dismissible_keyguard_swipe  "Swipe up to continue"
+-->
+<resources>
+    <string name="keyguard_unlock"></string>
+    <string name="keyguard_unlock_press"></string>
+</resources>

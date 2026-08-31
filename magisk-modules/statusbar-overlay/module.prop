@@ -1,0 +1,6 @@
+id=r1_statusbar_overlay
+name=R1 Status Bar (hide data-type indicator)
+version=v1.0
+versionCode=1
+author=recovery
+description=Blanks the mobile data-type indicator (LTE / 5G / H+ ...) in the status bar via a SystemUI RRO, keeping the signal bars. Reboot after install/remove.
