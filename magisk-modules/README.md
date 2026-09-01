@@ -11,6 +11,7 @@ module contents). Build the flashable zips and flash them in the Magisk app, the
 | `hide-ime-navbar` | Removes the keyboard's IME nav-bar strip via a fabricated overlay. | optional |
 | `lockscreen-overlay` | Two RROs retuning the keyguard for the 480×640 panel: SystemUI (smaller clock, tighter gutters) + framework-res (slimmer, recoloured pattern grid). Also hides lockscreen notifications. | **[R1 Lockscreen Overlay](../apps/r1-lockscreen-overlay)** |
 | `statusbar-overlay` | SystemUI RRO that blanks the mobile data-type indicator (LTE / 5G / H+) while keeping the signal bars. | **[R1 Status Bar Overlay](../apps/r1-statusbar-overlay)** |
+| `companion-device-enable` | Declares `android.software.companion_device_setup` so SystemServer starts `CompanionDeviceManagerService`. Without it, apps that pair via the system device chooser (Canon Mini Print, many wearables) hang forever — `associate()` never calls back. | optional |
 | `motor-sepolicy` | SELinux rules allowing the camera-motor sysfs node to be written. | **R1 Tools** |
 | `app-widgets-enable` | Enables `AppWidgetManager` for apps that expect widget support. | optional |
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SystemServer gates CompanionDeviceManagerService behind this feature:
+
+      if (mPackageManager.hasSystemFeature(FEATURE_COMPANION_DEVICE_SETUP)) {
+          mSystemServiceManager.startService(COMPANION_DEVICE_MANAGER_SERVICE_CLASS);
+      }
+
+  This GSI ships com.android.companiondevicemanager (the chooser UI) but never declares the
+  feature, so the service is never started — `service list` has no `companiondevice` entry and
+  CompanionDeviceManager.associate() silently never invokes onDeviceFound or onFailure.
+
+  Same failure shape as the missing android.software.app_widgets that app-widgets-enable fixes.
+-->
+<permissions>
+    <feature name="android.software.companion_device_setup" />
+</permissions>

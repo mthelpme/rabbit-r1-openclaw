@@ -1,0 +1,6 @@
+id=enable_companion_device
+name=Enable Companion Device Manager (GSI fix)
+version=v1.0
+versionCode=1
+author=recovery
+description=Declares android.software.companion_device_setup so SystemServer starts CompanionDeviceManagerService. Without it CompanionDeviceManager.associate() never calls back and apps that pair via the system device chooser (Canon Mini Print, many wearables) hang until their own timeout. The chooser APK is already present on the GSI; only the feature flag is missing. Reboot after install.
