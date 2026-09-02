@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widen the night-light range so it can actually go orange.
+
+  Stock on this GSI:
+      config_nightDisplayColorTemperatureMin      2596   <- the floor
+      config_nightDisplayColorTemperatureMax      4082
+      config_nightDisplayColorTemperatureDefault  2850
+
+  2596K is warm *white*. ColorDisplayService clamps to this on read — verified on-device by
+  writing `settings put secure night_display_color_temperature 1200` and watching
+  `dumpsys color_display` still report "Color temp: 2596". So the slider cannot reach orange
+  without moving the floor.
+
+  The RGB scale is a per-channel quadratic in Kelvin, from
+  config_nightDisplayColorTemperatureCoefficients:
+      R = 1.0  (constant)
+      G = -9.62353339e-9 x^2 + 1.53045476e-4 x + 0.390782778
+      B = -1.89359041e-8 x^2 + 3.02412211e-4 x - 0.198650895
+
+  Evaluated:
+      2596K -> (1.00, 0.72, 0.46)   warm white   (today's floor)
+      1500K -> (1.00, 0.60, 0.21)   warm orange
+      1000K -> (1.00, 0.53, 0.08)   strong orange
+       686K -> blue crosses zero and clamps; below this the curve is meaningless
+
+  1000 is chosen as the new floor: deeply orange while staying inside the range where the
+  stock polynomial is still well-behaved. The slider keeps working normally — this only
+  extends how far down it goes.
+-->
+<resources>
+    <integer name="config_nightDisplayColorTemperatureMin">1000</integer>
+</resources>

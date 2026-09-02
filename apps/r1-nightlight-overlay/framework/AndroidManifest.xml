@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.r1nightlight.overlay">
+    <application android:hasCode="false" />
+    <!--
+      Targets framework-res: ColorDisplayService reads the night-light bounds from `android`,
+      not SystemUI. Kept separate from r1-lockscreen-overlay's framework RRO so either can be
+      disabled independently.
+    -->
+    <overlay
+        android:targetPackage="android"
+        android:isStatic="false"
+        android:priority="1" />
+</manifest>

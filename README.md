@@ -59,7 +59,8 @@ The quick pop-up panel (hold the side button anywhere), and the persistent chat 
 | [`apps/r1-lockscreen-overlay`](apps/r1-lockscreen-overlay) | **R1 Lockscreen Overlay** — two resource overlays (RROs) that retune the keyguard for the R1's 480×640 panel: smaller clock, slimmer pattern grid. No code, no hooks. |
 | [`apps/r1-statusbar-overlay`](apps/r1-statusbar-overlay) | **R1 Status Bar Overlay** — a SystemUI RRO that blanks the mobile data-type indicator (LTE / 5G) while keeping the signal bars. |
 | [`apps/r1-lockscreen-tweaks`](apps/r1-lockscreen-tweaks) | **R1 Lockscreen Tweaks** — an LSPosed/Vector module that centres the keyguard clock/date and hides the lock icon and emergency button. The parts an overlay can't reach. |
-| [`magisk-modules/`](magisk-modules) | Magisk modules: PTT key remap, hide IME nav-bar, hide status bar, camera-motor sepolicy, enable app widgets, enable Companion Device Manager, lockscreen + status-bar overlays. |
+| [`apps/r1-nightlight-overlay`](apps/r1-nightlight-overlay) | **R1 Night Light Overlay** — a framework RRO that lowers the night-light floor from 2596K to 1000K, so it can actually go orange. |
+| [`magisk-modules/`](magisk-modules) | Magisk modules: PTT key remap, hide IME nav-bar, hide status bar, camera-motor sepolicy, enable app widgets, enable Companion Device Manager, lockscreen + status-bar + night-light overlays. |
 | [`services/stt-service`](services/stt-service) | Self-hosted OpenAI-compatible **speech-to-text** (faster-whisper) for your server. |
 | [`services/tts-service`](services/tts-service) | Self-hosted OpenAI-compatible **text-to-speech** (Kokoro) for your server. |
 | [`wallpaper/`](wallpaper) | Lock-screen and home-screen wallpapers for the R1 (3:4, matching the 480×640 panel). |

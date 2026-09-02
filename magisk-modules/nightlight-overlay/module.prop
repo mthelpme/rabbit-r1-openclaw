@@ -1,0 +1,6 @@
+id=r1_nightlight_overlay
+name=R1 Night Light (extend warmth range)
+version=v1.0
+versionCode=1
+author=recovery
+description=Lowers config_nightDisplayColorTemperatureMin from 2596K to 1000K so the built-in night light slider can reach a genuine orange. ColorDisplayService clamps to this config value, so the stock slider cannot go warmer without it. Reboot after install/remove.
